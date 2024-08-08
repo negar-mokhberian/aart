@@ -27,65 +27,10 @@ class AARTTrainer(Trainer):
         train_dataset = self.train_dataset
         data_collator = self.data_collator
 
-        # if is_datasets_available() and isinstance(train_dataset, datasets.Dataset):
-        #     train_dataset = self._remove_unused_columns(train_dataset, description="training")
-        # else:
-        #     data_collator = self._get_collator_with_removed_columns(data_collator, description="training")
         return DataLoader(train_dataset, batch_size=self._train_batch_size, shuffle=self.args.shuffle_train_data,
                           collate_fn=data_collator)  # , num_workers=4)
 
-    # def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]) -> torch.Tensor:
-    #     """
-    #     Perform a training step on a batch of inputs.
-    #
-    #     Subclass and override to inject custom behavior.
-    #
-    #     Args:
-    #         model (`nn.Module`):
-    #             The model to train.
-    #         inputs (`Dict[str, Union[torch.Tensor, Any]]`):
-    #             The inputs and targets of the model.
-    #
-    #             The dictionary will be unpacked before being fed to the model. Most models expect the targets under the
-    #             argument `labels`. Check your model's documentation for all accepted arguments.
-    #
-    #     Return:
-    #         `torch.Tensor`: The tensor with training loss on this batch.
-    #     """
-    #     model.train()
-    #     # if self.state.epoch >= self.args.epoch_freeze_bert:
-    #     #     for param in model.roberta.parameters():
-    #     #         param.requires_grad = False
-    #
-    #     inputs = self._prepare_inputs(inputs)
-    #
-    #     if is_sagemaker_mp_enabled():
-    #         loss_mb = smp_forward_backward(model, inputs, self.args.gradient_accumulation_steps)
-    #         return loss_mb.reduce_mean().detach().to(self.args.device)
-    #
-    #     with self.compute_loss_context_manager():
-    #         loss = self.compute_loss(model, inputs)
-    #
-    #     if self.args.n_gpu > 1:
-    #         loss = loss.mean()  # mean() to average on multi-gpu parallel training
-    #
-    #     if self.args.gradient_accumulation_steps > 1 and not self.deepspeed:
-    #         # deepspeed handles loss scaling by gradient_accumulation_steps in its `backward`
-    #         loss = loss / self.args.gradient_accumulation_steps
-    #
-    #     if self.do_grad_scaling:
-    #         self.scaler.scale(loss).backward()
-    #     elif self.use_apex:
-    #         with amp.scale_loss(loss, self.optimizer) as scaled_loss:
-    #             scaled_loss.backward()
-    #     elif self.deepspeed:
-    #         # loss gets scaled under gradient_accumulation_steps in deepspeed
-    #         loss = self.deepspeed.backward(loss)
-    #     else:
-    #         loss.backward()
-    #
-    #     return loss.detach()
-
+   
     def compute_loss(self, model, inputs, return_outputs=False):
         """
         How the loss is computed by Trainer. By default, all models return the loss in the first element.
@@ -117,54 +62,6 @@ class AARTTrainer(Trainer):
 
         return (loss, outputs) if return_outputs else loss
 
-    # def _get_polynomial_lambda_schedule_with_inactive_steps(
-    #         self,
-    #         current_step: int,
-    #         ratio_inactive_steps: float,
-    #         num_training_steps: int,
-    #         lambda_end: float,
-    #         power: float,
-    #         lambda_init: float,
-    # ):
-    #     assert current_step <= num_training_steps
-    #
-    #     num_inactive_steps = ratio_inactive_steps * num_training_steps
-    #     if current_step <= num_inactive_steps:
-    #         return lambda_init  # float(current_step) / float(max(1, num_warmup_steps))
-    #     else:
-    #         lambda_range = lambda_end - lambda_init
-    #         decay_steps = num_training_steps - num_inactive_steps
-    #         pct_remaining = (current_step - num_inactive_steps) / decay_steps
-    #         current_lambda = lambda_range * pct_remaining ** power
-    #         # print(f"{current_step} current lambda: {current_lambda}")
-    #         return current_lambda
-
-    # def _get_cosine_schedule_with_inactive_steps(
-    #         self, current_step: int,
-    #         ratio_inactive_steps: float,
-    #         num_training_steps: int,
-    #         num_cycles: float,
-    #         lambda_max: float,
-    # ):
-    #     import math
-    #     assert current_step <= num_training_steps
-    #
-    #     num_inactive_steps = ratio_inactive_steps * num_training_steps
-    #     assert num_inactive_steps <= num_training_steps
-    #     if current_step <= num_inactive_steps:
-    #         return lambda_max  # float(current_step) / float(max(1, num_warmup_steps))
-    #     progress = float(current_step - num_inactive_steps) / float(max(1, num_training_steps - num_inactive_steps))
-    #     return lambda_max * max(0.0, 0.5 * (1.0 + math.cos(math.pi * float(num_cycles) * 2.0 * progress)))
-    #
-    #     # import math
-    #     # assert current_step <= num_training_steps
-    #     #
-    #     # num_inactive_steps = ratio_inactive_steps * num_training_steps
-    #     # assert num_inactive_steps <= num_training_steps
-    #     # if current_step < num_inactive_steps:
-    #     #     return 0.0  # float(current_step) / float(max(1, num_warmup_steps))
-    #     # progress = float(current_step - num_inactive_steps) / float(max(1, num_training_steps - num_inactive_steps))
-    #     # return lambda_end * max(0.0, 0.5 * (1.0 + math.cos(math.pi * float(num_cycles) * 2.0 * progress + math.pi)))
 
     def lambda_scheduler(self):
         # assert ~(self.args.lambda1 == self.args.lambda1) or ~(self.args.lambda2 == self.args.lambda2)
@@ -224,31 +121,6 @@ class AARTTrainer(Trainer):
                     f"step {self.state.global_step}, lambda: {current_lambda}, contrastive_alpha: {self.args.contrastive_alpha}, \ncurrent l2_norm: {outputs.l2_norm}, \ncurrent ce_loss: {outputs.ce_loss}, \ncurrent contrastive_loss: {outputs.contrastive_loss}")
 
         return (loss, outputs) if return_outputs else loss
-
-    # def create_scheduler(self, num_training_steps: int, optimizer: torch.optim.Optimizer = None):
-    #     """
-    #     Setup the scheduler. The optimizer of the trainer must have been set up either before this method is called or
-    #     passed as an argument.
-    #     Args:
-    #         num_training_steps (int): The number of training steps to do.
-    #     """
-    #     # from  transformers.trainer_utils import SchedulerType
-    #     from transformers import optimization
-    #     if self.lr_scheduler is None:
-    #         self.lr_scheduler = optimization.get_polynomial_decay_schedule_with_warmup(
-    #             optimizer=self.optimizer if optimizer is None else optimizer,
-    #             num_warmup_steps=self.args.get_warmup_steps(num_training_steps),
-    #             num_training_steps=num_training_steps,
-    #             power=3.0)
-    #     return self.lr_scheduler
-
-    #         # self.lr_scheduler = optimization.get_cosine_with_hard_restarts_schedule_with_warmup(
-    #         #     optimizer=self.optimizer if optimizer is None else optimizer,
-    #         #     num_warmup_steps=self.args.get_warmup_steps(num_training_steps),
-    #         #     num_training_steps=num_training_steps,
-    #         #     num_cycles=4)
-    #
-    #     print(self.lr_scheduler)
 
 
 class AARTPipeline(GenericPipeline):
