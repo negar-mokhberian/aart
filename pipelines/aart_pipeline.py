@@ -149,7 +149,6 @@ class AARTPipeline(GenericPipeline):
                 tmp_df = df.drop_duplicates(self.instance_id_col).copy()
                 tmp_df = tmp_df.sample(frac=1 / N, random_state=self.params.random_state)
                 tmp_df['annotator'] = fake_ann_name
-                # todo this should change for multi class
                 tmp_df['label'] = np.abs(
                     tmp_df['majority_label'] - np.random.choice([0, 1], size=tmp_df.shape[0], p=[.9, .1]))
                 if type == "opp":
