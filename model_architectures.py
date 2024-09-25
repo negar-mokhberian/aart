@@ -14,8 +14,8 @@ class MultiTaskClassifier(RobertaForSequenceClassification):
         self.config = config
 
         # might need to rename this depending on the model
-        self.roberta = RobertaModel(config)
-        nhid = self.roberta.config.hidden_size
+        self.language_model = RobertaModel(config)
+        nhid = self.language_model.config.hidden_size
         print("@@@ nhid: ", nhid)
 
         self.task_labels = task_labels
@@ -50,7 +50,7 @@ class MultiTaskClassifier(RobertaForSequenceClassification):
 
         # return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        outputs = self.roberta(
+        outputs = self.language_model(
             input_ids,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
@@ -122,8 +122,8 @@ class AARTClassifier(RobertaForSequenceClassification):
     def __init__(self, config, label_weights, annotator_weights=[], embd_type_cnt={}):
         super().__init__(config)
         self.config = config
-        self.roberta = RobertaModel(config)
-        nhid = self.roberta.config.hidden_size
+        self.language_model = RobertaModel(config)
+        nhid = self.language_model.config.hidden_size
         print("@@@ nhid: ", nhid)
         print("@@ num labels:", config.num_labels)
         self.emb_names = list(embd_type_cnt.keys())
@@ -192,8 +192,8 @@ class AARTClassifier(RobertaForSequenceClassification):
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
         """
         # return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
-        outputs = self.roberta(
+        import pdb; pdb.set_trace()
+        outputs = self.language_model(
             input_ids,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,

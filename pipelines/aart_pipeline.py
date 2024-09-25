@@ -9,7 +9,6 @@ from sklearn.utils.class_weight import compute_class_weight
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from utils import get_a_p_r_f
 
-
 class AARTTrainer(Trainer):
 
     def get_train_dataloader(self) -> DataLoader:
@@ -27,10 +26,65 @@ class AARTTrainer(Trainer):
         train_dataset = self.train_dataset
         data_collator = self.data_collator
 
+        # if is_datasets_available() and isinstance(train_dataset, datasets.Dataset):
+        #     train_dataset = self._remove_unused_columns(train_dataset, description="training")
+        # else:
+        #     data_collator = self._get_collator_with_removed_columns(data_collator, description="training")
         return DataLoader(train_dataset, batch_size=self._train_batch_size, shuffle=self.args.shuffle_train_data,
                           collate_fn=data_collator)  # , num_workers=4)
 
-   
+    # def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]) -> torch.Tensor:
+    #     """
+    #     Perform a training step on a batch of inputs.
+    #
+    #     Subclass and override to inject custom behavior.
+    #
+    #     Args:
+    #         model (`nn.Module`):
+    #             The model to train.
+    #         inputs (`Dict[str, Union[torch.Tensor, Any]]`):
+    #             The inputs and targets of the model.
+    #
+    #             The dictionary will be unpacked before being fed to the model. Most models expect the targets under the
+    #             argument `labels`. Check your model's documentation for all accepted arguments.
+    #
+    #     Return:
+    #         `torch.Tensor`: The tensor with training loss on this batch.
+    #     """
+    #     model.train()
+    #     # if self.state.epoch >= self.args.epoch_freeze_bert:
+    #     #     for param in model.roberta.parameters():
+    #     #         param.requires_grad = False
+    #
+    #     inputs = self._prepare_inputs(inputs)
+    #
+    #     if is_sagemaker_mp_enabled():
+    #         loss_mb = smp_forward_backward(model, inputs, self.args.gradient_accumulation_steps)
+    #         return loss_mb.reduce_mean().detach().to(self.args.device)
+    #
+    #     with self.compute_loss_context_manager():
+    #         loss = self.compute_loss(model, inputs)
+    #
+    #     if self.args.n_gpu > 1:
+    #         loss = loss.mean()  # mean() to average on multi-gpu parallel training
+    #
+    #     if self.args.gradient_accumulation_steps > 1 and not self.deepspeed:
+    #         # deepspeed handles loss scaling by gradient_accumulation_steps in its `backward`
+    #         loss = loss / self.args.gradient_accumulation_steps
+    #
+    #     if self.do_grad_scaling:
+    #         self.scaler.scale(loss).backward()
+    #     elif self.use_apex:
+    #         with amp.scale_loss(loss, self.optimizer) as scaled_loss:
+    #             scaled_loss.backward()
+    #     elif self.deepspeed:
+    #         # loss gets scaled under gradient_accumulation_steps in deepspeed
+    #         loss = self.deepspeed.backward(loss)
+    #     else:
+    #         loss.backward()
+    #
+    #     return loss.detach()
+
     def compute_loss(self, model, inputs, return_outputs=False):
         """
         How the loss is computed by Trainer. By default, all models return the loss in the first element.
@@ -62,6 +116,54 @@ class AARTTrainer(Trainer):
 
         return (loss, outputs) if return_outputs else loss
 
+    # def _get_polynomial_lambda_schedule_with_inactive_steps(
+    #         self,
+    #         current_step: int,
+    #         ratio_inactive_steps: float,
+    #         num_training_steps: int,
+    #         lambda_end: float,
+    #         power: float,
+    #         lambda_init: float,
+    # ):
+    #     assert current_step <= num_training_steps
+    #
+    #     num_inactive_steps = ratio_inactive_steps * num_training_steps
+    #     if current_step <= num_inactive_steps:
+    #         return lambda_init  # float(current_step) / float(max(1, num_warmup_steps))
+    #     else:
+    #         lambda_range = lambda_end - lambda_init
+    #         decay_steps = num_training_steps - num_inactive_steps
+    #         pct_remaining = (current_step - num_inactive_steps) / decay_steps
+    #         current_lambda = lambda_range * pct_remaining ** power
+    #         # print(f"{current_step} current lambda: {current_lambda}")
+    #         return current_lambda
+
+    # def _get_cosine_schedule_with_inactive_steps(
+    #         self, current_step: int,
+    #         ratio_inactive_steps: float,
+    #         num_training_steps: int,
+    #         num_cycles: float,
+    #         lambda_max: float,
+    # ):
+    #     import math
+    #     assert current_step <= num_training_steps
+    #
+    #     num_inactive_steps = ratio_inactive_steps * num_training_steps
+    #     assert num_inactive_steps <= num_training_steps
+    #     if current_step <= num_inactive_steps:
+    #         return lambda_max  # float(current_step) / float(max(1, num_warmup_steps))
+    #     progress = float(current_step - num_inactive_steps) / float(max(1, num_training_steps - num_inactive_steps))
+    #     return lambda_max * max(0.0, 0.5 * (1.0 + math.cos(math.pi * float(num_cycles) * 2.0 * progress)))
+    #
+    #     # import math
+    #     # assert current_step <= num_training_steps
+    #     #
+    #     # num_inactive_steps = ratio_inactive_steps * num_training_steps
+    #     # assert num_inactive_steps <= num_training_steps
+    #     # if current_step < num_inactive_steps:
+    #     #     return 0.0  # float(current_step) / float(max(1, num_warmup_steps))
+    #     # progress = float(current_step - num_inactive_steps) / float(max(1, num_training_steps - num_inactive_steps))
+    #     # return lambda_end * max(0.0, 0.5 * (1.0 + math.cos(math.pi * float(num_cycles) * 2.0 * progress + math.pi)))
 
     def lambda_scheduler(self):
         # assert ~(self.args.lambda1 == self.args.lambda1) or ~(self.args.lambda2 == self.args.lambda2)
@@ -122,6 +224,31 @@ class AARTTrainer(Trainer):
 
         return (loss, outputs) if return_outputs else loss
 
+    # def create_scheduler(self, num_training_steps: int, optimizer: torch.optim.Optimizer = None):
+    #     """
+    #     Setup the scheduler. The optimizer of the trainer must have been set up either before this method is called or
+    #     passed as an argument.
+    #     Args:
+    #         num_training_steps (int): The number of training steps to do.
+    #     """
+    #     # from  transformers.trainer_utils import SchedulerType
+    #     from transformers import optimization
+    #     if self.lr_scheduler is None:
+    #         self.lr_scheduler = optimization.get_polynomial_decay_schedule_with_warmup(
+    #             optimizer=self.optimizer if optimizer is None else optimizer,
+    #             num_warmup_steps=self.args.get_warmup_steps(num_training_steps),
+    #             num_training_steps=num_training_steps,
+    #             power=3.0)
+    #     return self.lr_scheduler
+
+    #         # self.lr_scheduler = optimization.get_cosine_with_hard_restarts_schedule_with_warmup(
+    #         #     optimizer=self.optimizer if optimizer is None else optimizer,
+    #         #     num_warmup_steps=self.args.get_warmup_steps(num_training_steps),
+    #         #     num_training_steps=num_training_steps,
+    #         #     num_cycles=4)
+    #
+    #     print(self.lr_scheduler)
+
 
 class AARTPipeline(GenericPipeline):
 
@@ -149,6 +276,7 @@ class AARTPipeline(GenericPipeline):
                 tmp_df = df.drop_duplicates(self.instance_id_col).copy()
                 tmp_df = tmp_df.sample(frac=1 / N, random_state=self.params.random_state)
                 tmp_df['annotator'] = fake_ann_name
+                # todo this should change for multi class
                 tmp_df['label'] = np.abs(
                     tmp_df['majority_label'] - np.random.choice([0, 1], size=tmp_df.shape[0], p=[.9, .1]))
                 if type == "opp":
@@ -167,6 +295,37 @@ class AARTPipeline(GenericPipeline):
         aggregated_labels = [int(e) for e in aggregated_labels]
         assert "majority_label" not in df.columns
         return aggregated_labels
+
+    def print_emb_info(self, model):
+        for k in model.emb_names:
+            print('~' * 30)
+            print(k)
+            print(f"L1 of {k} embeddings:")
+            print(torch.norm(getattr(model, f"{k}_embeddings").weight.detach(), p=1, dim=1).mean())
+            print(self.data_dict[f'{k}_map'])
+            print(torch.norm(getattr(model, f"{k}_embeddings").weight.detach(), p=1, dim=1))
+
+    # todo add the ability to save text embeddings too
+    def save_embeddings(self, model):
+        import pdb; pdb.set_trace()
+        for k in model.emb_names:
+            import pickle
+            annot_embs_dict = {
+                self.data_dict[f'{k}_map'][j]: getattr(model, f"{k}_embeddings").weight.detach().cpu().numpy()[
+                                               j, :]
+                for j in train[f'{k}_int_encoded'].unique()}
+            import os
+
+            embs_dir = f"./results/{self.params.approach}/{self.params.data_name}/embeddings/emb_cols {' '.join(self.params.embedding_colnames)}"
+            os.makedirs(embs_dir, exist_ok=True)
+            print(
+                f"saving embeddings to {embs_dir}/{k}_embeddings_{param_combinations}_rand_seed_{self.params.random_state}.pkl")
+            with open(
+                    f"{embs_dir}/{k}_embeddings_{param_combinations}_rand_seed_{self.params.random_state}.pkl",
+                    'wb') as fp:
+                pickle.dump(annot_embs_dict, fp)
+                print(f'{k} embeddings saved successfully to file')
+            print('~' * 30)
 
     def _create_loss_label_weights(self, labels):
         weights = compute_class_weight(class_weight='balanced',
