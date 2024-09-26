@@ -1,3 +1,4 @@
+import os
 import torch
 import numpy as np
 import pandas as pd
@@ -306,15 +307,14 @@ class AARTPipeline(GenericPipeline):
             print(torch.norm(getattr(model, f"{k}_embeddings").weight.detach(), p=1, dim=1))
 
     # todo add the ability to save text embeddings too
-    def save_embeddings(self, model):
-        import pdb; pdb.set_trace()
+    def save_embeddings(self, model, train_df, param_combinations):
+
         for k in model.emb_names:
             import pickle
             annot_embs_dict = {
-                self.data_dict[f'{k}_map'][j]: getattr(model, f"{k}_embeddings").weight.detach().cpu().numpy()[
-                                               j, :]
-                for j in train[f'{k}_int_encoded'].unique()}
-            import os
+                self.data_dict[f'{k}_map'][j]: getattr(model, f"{k}_embeddings").weight.detach().cpu().numpy()[j, :]
+                for j in train_df[f'{k}_int_encoded'].unique()}
+
 
             embs_dir = f"./results/{self.params.approach}/{self.params.data_name}/embeddings/emb_cols {' '.join(self.params.embedding_colnames)}"
             os.makedirs(embs_dir, exist_ok=True)
@@ -477,7 +477,6 @@ class AARTPipeline(GenericPipeline):
         import matplotlib.pyplot as plt
         import seaborn as sns
         from sklearn.manifold import TSNE
-        import os
         os.makedirs(fig_dir, exist_ok=True)
         plt.figure(figsize=(8, 8))
 

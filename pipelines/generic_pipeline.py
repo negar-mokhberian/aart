@@ -175,9 +175,9 @@ class GenericPipeline():
 
         if saving_name:
             # Saving the embedding vectors
-            save_dir = f"results/{self.params.data_name}/text_embeddings/embeddings"
+            save_dir = f"./results/{self.params.approach}/{self.params.data_name}/text_embeddings"
             os.makedirs(save_dir, exist_ok=True)
-            with open(f"{save_dir}/{saving_name}_{self.params.data_name}_{self.params.random_state}_embeddings.png",
+            with open(f"{save_dir}/{saving_name}_{self.params.data_name}_{self.params.random_state}_embeddings.pkl",
                       'wb') as fp:
                 pickle.dump(text_to_embeddings_dict, fp)
             print(f'Text embeddings saved successfully to file')
@@ -186,8 +186,6 @@ class GenericPipeline():
             from umap import UMAP
             import seaborn as sns
             import matplotlib.pyplot as plt
-            import pdb;
-            pdb.set_trace()
             text_embeddings = np.concatenate(text_embeddings, axis=0)
             color_col = df['disagreement_level']
 
@@ -202,7 +200,7 @@ class GenericPipeline():
                 legend="full",
                 alpha=0.7,
             )
-            save_dir = f'results/{self.params.data_name}/text_embeddings/plots'
+            save_dir = f"./results/{self.params.approach}/{self.params.data_name}/text_embeddings_plots"
             os.makedirs(save_dir, exist_ok=True)
             plt.savefig(f'{save_dir}/{saving_name}_{self.params.data_name}_{self.params.random_state}_embeddings.png')
             return text_to_embeddings_dict
@@ -296,7 +294,7 @@ class GenericPipeline():
 
         print("viewing embeddings details and ")
         self.print_emb_info(model=model)
-        self.save_embeddings(model=model)
+        self.save_embeddings(model=model, train_df= train, param_combinations=param_combinations)
         self.get_text_embeddings(df=train.drop_duplicates(self.instance_id_col).copy(),
                                  language_model=model.language_model, saving_name="after")
 
