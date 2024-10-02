@@ -165,7 +165,7 @@ class AARTClassifier(RobertaForSequenceClassification):
             for k in self.emb_names:
                 l2_norm = l2_norm + torch.linalg.vector_norm(getattr(self, f"{k}_embeddings").weight, dim=1,
                                                              ord=2).mean()
-                # todo what will happen to the the same embeddings? for example a0 and a0? or hispanic and hispanic?
+                # todo what will happen to the same embeddings? for example a0 and a0? or hispanic and hispanic?
                 contrastive_loss = contrastive_loss + contrastive_loss_funct(
                     getattr(self, f"{k}_embeddings")(other_args[f"{k}_ids"]),
                     labels=labels.view(-1),
