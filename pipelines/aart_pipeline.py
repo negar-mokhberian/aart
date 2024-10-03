@@ -1,4 +1,3 @@
-import os
 import torch
 import numpy as np
 import pandas as pd
@@ -9,6 +8,7 @@ from sklearn.utils.class_weight import compute_class_weight
 
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from utils import get_a_p_r_f
+
 
 class AARTTrainer(Trainer):
 
@@ -297,36 +297,6 @@ class AARTPipeline(GenericPipeline):
         assert "majority_label" not in df.columns
         return aggregated_labels
 
-    def print_emb_info(self, model):
-        for k in model.emb_names:
-            print('~' * 30)
-            print(k)
-            print(f"L1 of {k} embeddings:")
-            print(torch.norm(getattr(model, f"{k}_embeddings").weight.detach(), p=1, dim=1).mean())
-            print(self.data_dict[f'{k}_map'])
-            print(torch.norm(getattr(model, f"{k}_embeddings").weight.detach(), p=1, dim=1))
-
-    # todo add the ability to save text embeddings too
-    def save_embeddings(self, model, train_df, param_combinations):
-
-        for k in model.emb_names:
-            import pickle
-            annot_embs_dict = {
-                self.data_dict[f'{k}_map'][j]: getattr(model, f"{k}_embeddings").weight.detach().cpu().numpy()[j, :]
-                for j in train_df[f'{k}_int_encoded'].unique()}
-
-
-            embs_dir = f"./results/{self.params.approach}/{self.params.data_name}/embeddings/emb_cols {' '.join(self.params.embedding_colnames)}"
-            os.makedirs(embs_dir, exist_ok=True)
-            print(
-                f"saving embeddings to {embs_dir}/{k}_embeddings_{param_combinations}_rand_seed_{self.params.random_state}.pkl")
-            with open(
-                    f"{embs_dir}/{k}_embeddings_{param_combinations}_rand_seed_{self.params.random_state}.pkl",
-                    'wb') as fp:
-                pickle.dump(annot_embs_dict, fp)
-                print(f'{k} embeddings saved successfully to file')
-            print('~' * 30)
-
     def _create_loss_label_weights(self, labels):
         weights = compute_class_weight(class_weight='balanced',
                                        classes=np.unique(labels),
@@ -477,6 +447,7 @@ class AARTPipeline(GenericPipeline):
         import matplotlib.pyplot as plt
         import seaborn as sns
         from sklearn.manifold import TSNE
+        import os
         os.makedirs(fig_dir, exist_ok=True)
         plt.figure(figsize=(8, 8))
 

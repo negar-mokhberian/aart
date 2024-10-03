@@ -14,8 +14,8 @@ class MultiTaskClassifier(RobertaForSequenceClassification):
         self.config = config
 
         # might need to rename this depending on the model
-        self.language_model = RobertaModel(config)
-        nhid = self.language_model.config.hidden_size
+        self.roberta = RobertaModel(config)
+        nhid = self.roberta.config.hidden_size
         print("@@@ nhid: ", nhid)
 
         self.task_labels = task_labels
@@ -50,7 +50,7 @@ class MultiTaskClassifier(RobertaForSequenceClassification):
 
         # return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        outputs = self.language_model(
+        outputs = self.roberta(
             input_ids,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
@@ -122,8 +122,8 @@ class AARTClassifier(RobertaForSequenceClassification):
     def __init__(self, config, label_weights, annotator_weights=[], embd_type_cnt={}):
         super().__init__(config)
         self.config = config
-        self.language_model = RobertaModel(config)
-        nhid = self.language_model.config.hidden_size
+        self.roberta = RobertaModel(config)
+        nhid = self.roberta.config.hidden_size
         print("@@@ nhid: ", nhid)
         print("@@ num labels:", config.num_labels)
         self.emb_names = list(embd_type_cnt.keys())
@@ -165,7 +165,7 @@ class AARTClassifier(RobertaForSequenceClassification):
             for k in self.emb_names:
                 l2_norm = l2_norm + torch.linalg.vector_norm(getattr(self, f"{k}_embeddings").weight, dim=1,
                                                              ord=2).mean()
-                # todo what will happen to the same embeddings? for example a0 and a0? or hispanic and hispanic?
+                # todo what will happen to the the same embeddings? for example a0 and a0? or hispanic and hispanic?
                 contrastive_loss = contrastive_loss + contrastive_loss_funct(
                     getattr(self, f"{k}_embeddings")(other_args[f"{k}_ids"]),
                     labels=labels.view(-1),
@@ -195,7 +195,7 @@ class AARTClassifier(RobertaForSequenceClassification):
         """
         # return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        outputs = self.language_model(
+        outputs = self.roberta(
             input_ids,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,

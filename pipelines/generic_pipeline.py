@@ -3,9 +3,8 @@ import numpy as np
 import pandas as pd
 from params import params
 from dataclasses import dataclass, field
-from utils import load_compute_metrics
 from transformers import AutoTokenizer, TrainingArguments, EarlyStoppingCallback
-from torch.utils.data import DataLoader, Dataset, IterableDataset, RandomSampler, SequentialSampler
+from utils import load_compute_metrics
 
 
 def set_seed(seed):
@@ -108,7 +107,9 @@ class GenericPipeline():
             df[f'disagreement_level'] = df[f'disagreement_level'].round(1)
 
         df = self.add_fake_annotators(df)
-        train_idx = open(f"../splits/{data_name_for_path}/train_{self.params.random_state}.txt").read().splitlines()
+
+        train_idx = open(
+            f"../splits/{data_name_for_path}/train_{self.params.random_state}.txt").read().splitlines()
         dev_idx = open(
             f"../splits/{data_name_for_path}/dev_{self.params.random_state}.txt").read().splitlines()
         test_idx = open(
@@ -150,95 +151,41 @@ class GenericPipeline():
         print(f"Approach name is {self.params.approach}")
         return data_dict
 
-    def get_text_embeddings(self, df, language_model, saving_name=""):
-        import os
-        import pickle
-        if df[self.instance_id_col].duplicated().any():
-            import pdb;
-            pdb.set_trace()
-            df = df.drop_duplicates(self.instance_id_col).copy()
-        dataset = self.get_batches(df)
-        text_to_embeddings_dict = {}
+    def plot_text_embs(self, df, language_model, name_plot):
+        from umap import UMAP
+        import seaborn as sns
+        import matplotlib.pyplot as plt
+
+        train_dataset = self.get_batches(df)
+        color_col = df['disagreement_level']
+
         text_embeddings = []
-        for i in range(0, len(dataset), self.params.batch_size):
-            input_ids = torch.tensor(dataset['input_ids'][i:i + self.params.batch_size], device="cuda")
-            attention_masks = torch.tensor(dataset['attention_mask'][i:i + self.params.batch_size], device="cuda")
+        for i in range(0, len(color_col), 20):
+            # print(i)
+            input_ids = torch.tensor(train_dataset['input_ids'][i:i + 20], device="cuda")
+            attention_masks = torch.tensor(train_dataset['attention_mask'][i:i + 20], device="cuda")
             outputs = language_model(input_ids=input_ids,
                                      attention_mask=attention_masks)
-            cls_embeddings = outputs.last_hidden_state[:, 0, :].detach().cpu().numpy()
-            text_embeddings.append(cls_embeddings)
-            for j in range(min(self.params.batch_size, cls_embeddings.shape[0])):
-                text_to_embeddings_dict[df['text_id'].iloc[i + j]] = cls_embeddings[j]
+            # input_ids = input_ids.detach().cpu()
+            # attention_masks = attention_masks.detach().cpu()
+            hidden = outputs.last_hidden_state[:, 0, :].detach().cpu().numpy()
+            text_embeddings.append(hidden)
 
-            input_ids = input_ids.detach().cpu()
-            attention_masks = attention_masks.detach().cpu()
+        text_embeddings = np.concatenate(text_embeddings, axis=0)
 
-        if saving_name:
-            # Saving the embedding vectors
-            save_dir = f"./results/{self.params.approach}/{self.params.data_name}/text_embeddings"
-            os.makedirs(save_dir, exist_ok=True)
-            with open(f"{save_dir}/{saving_name}_{self.params.data_name}_{self.params.random_state}_embeddings.pkl",
-                      'wb') as fp:
-                pickle.dump(text_to_embeddings_dict, fp)
-            print(f'Text embeddings saved successfully to file')
+        umap_model = UMAP(n_neighbors=10, n_components=2, min_dist=0.0, metric='cosine')
+        two_d_results = umap_model.fit_transform(text_embeddings)
 
-            # Saving the plot of text embeddings
-            from umap import UMAP
-            import seaborn as sns
-            import matplotlib.pyplot as plt
-            text_embeddings = np.concatenate(text_embeddings, axis=0)
-            color_col = df['disagreement_level']
+        plt.figure(figsize=(16, 10))
+        print(two_d_results.shape)
+        sns.scatterplot(
+            x=two_d_results[:, 0], y=two_d_results[:, 1],
+            hue=color_col,
+            legend="full",
+            alpha=0.7,
+        )
 
-            umap_model = UMAP(n_neighbors=10, n_components=2, min_dist=0.0, metric='cosine')
-            two_d_results = umap_model.fit_transform(text_embeddings)
-
-            plt.figure(figsize=(16, 10))
-            print(two_d_results.shape)
-            sns.scatterplot(
-                x=two_d_results[:, 0], y=two_d_results[:, 1],
-                hue=color_col,
-                legend="full",
-                alpha=0.7,
-            )
-            save_dir = f"./results/{self.params.approach}/{self.params.data_name}/text_embeddings_plots"
-            os.makedirs(save_dir, exist_ok=True)
-            plt.savefig(f'{save_dir}/{saving_name}_{self.params.data_name}_{self.params.random_state}_embeddings.png')
-            return text_to_embeddings_dict
-
-    # def plot_text_embs(self, df, language_model, name_plot):
-    #     from umap import UMAP
-    #     import seaborn as sns
-    #     import matplotlib.pyplot as plt
-    #
-    #     train_dataset = self.get_batches(df)
-    #     color_col = df['disagreement_level']
-    #
-    #     text_embeddings = []
-    #     for i in range(0, len(color_col), 20):
-    #         # print(i)
-    #         input_ids = torch.tensor(train_dataset['input_ids'][i:i + 20], device="cuda")
-    #         attention_masks = torch.tensor(train_dataset['attention_mask'][i:i + 20], device="cuda")
-    #         outputs = language_model(input_ids=input_ids,
-    #                                  attention_mask=attention_masks)
-    #         # input_ids = input_ids.detach().cpu()
-    #         # attention_masks = attention_masks.detach().cpu()
-    #         hidden = outputs.last_hidden_state[:, 0, :].detach().cpu().numpy()
-    #         text_embeddings.append(hidden)
-    #     text_embeddings = np.concatenate(text_embeddings, axis=0)
-    #
-    #     umap_model = UMAP(n_neighbors=10, n_components=2, min_dist=0.0, metric='cosine')
-    #     two_d_results = umap_model.fit_transform(text_embeddings)
-    #
-    #     plt.figure(figsize=(16, 10))
-    #     print(two_d_results.shape)
-    #     sns.scatterplot(
-    #         x=two_d_results[:, 0], y=two_d_results[:, 1],
-    #         hue=color_col,
-    #         legend="full",
-    #         alpha=0.7,
-    #     )
-    #
-    #     plt.savefig(f'{name_plot}_{self.params.data_name}_{self.params.random_state}_embeddings.png')
+        plt.savefig(f'{name_plot}_{self.params.data_name}_{self.params.random_state}_embeddings.png')
 
     def run(self):
         score, test_preds_df = self.train_and_test_on_splits(
@@ -247,12 +194,6 @@ class GenericPipeline():
             test=self.data_dict['test'])
         score = pd.DataFrame(score)
         return score, test_preds_df
-
-    def print_emb_info(self, **kwargs):
-        pass
-
-    def save_embeddings(self, **kwargs):
-        pass
 
     def train_and_test_on_splits(self, train, dev, test):
         print("train shape: ", train.shape)
@@ -271,7 +212,14 @@ class GenericPipeline():
         # param_combinations = )
         print("*** PARAMS *** \n", self.get_param_combinations(sep1=": "))
 
-        self.print_emb_info(model=model)
+        if self.params.approach == "aart":
+            for k in model.emb_names:
+                print('~' * 30)
+                print(k)
+                print(f"L1 of {k} embeddings:")
+                print(torch.norm(getattr(model, f"{k}_embeddings").weight.detach(), p=1, dim=1).mean())
+                print(self.data_dict[f'{k}_map'])
+                print(torch.norm(getattr(model, f"{k}_embeddings").weight.detach(), p=1, dim=1))
 
         epoch_steps = int(train.shape[0] / self.params.batch_size)
         print("Epoch Steps: ", epoch_steps)
@@ -285,18 +233,39 @@ class GenericPipeline():
         trainer = self.get_trainer(model=model, train_dataset=train_dataset, dev_dataset=dev_dataset,
                                    training_args=training_args)
         print(trainer.args)
-        self.get_text_embeddings(df=train.drop_duplicates(self.instance_id_col).copy(),
-                                 language_model=model.language_model, saving_name="before")
+        # self.plot_text_embs(df=train.drop_duplicates(self.instance_id_col).copy(), language_model=model.roberta,
+        #                     name_plot="before")
         trainer.train()
         # print(trainer.state)
         # self.plot_text_embs(df=train.drop_duplicates(self.instance_id_col).copy(), language_model=model.roberta,
         #                     name_plot="after")
 
-        print("viewing embeddings details and ")
-        self.print_emb_info(model=model)
-        self.save_embeddings(model=model, train_df= train, param_combinations=param_combinations)
-        self.get_text_embeddings(df=train.drop_duplicates(self.instance_id_col).copy(),
-                                 language_model=model.language_model, saving_name="after")
+        if self.params.approach == "aart":
+            for k in model.emb_names:
+                print('~' * 30)
+                print(k)
+                print(f"L1 of {k} embeddings:")
+                print(torch.norm(getattr(model, f"{k}_embeddings").weight.detach(), p=1, dim=1).mean())
+                print(self.data_dict[f'{k}_map'])
+                print(torch.norm(getattr(model, f"{k}_embeddings").weight.detach(), p=1, dim=1))
+                # if not self.params.skip_test:
+                #     import pickle
+                #     annot_embs_dict = {
+                #         self.data_dict[f'{k}_map'][j]: getattr(model, f"{k}_embeddings").weight.detach().cpu().numpy()[
+                #                                        j, :]
+                #         for j in train[f'{k}_int_encoded'].unique()}
+                #     import os
+                #
+                #     embs_dir = f"./results/{self.params.approach}/{self.params.data_name}/embeddings/emb_cols {' '.join(self.params.embedding_colnames)}"
+                #     os.makedirs(embs_dir, exist_ok=True)
+                #     print(
+                #         f"saving embeddings to {embs_dir}/{k}_embeddings_{param_combinations}_rand_seed_{self.params.random_state}.pkl")
+                #     with open(
+                #             f"{embs_dir}/{k}_embeddings_{param_combinations}_rand_seed_{self.params.random_state}.pkl",
+                #             'wb') as fp:
+                #         pickle.dump(annot_embs_dict, fp)
+                #         print(f'{k} embeddings saved successfully to file')
+                #     print('~' * 30)
 
         print("~~~~~ Dev Masked Preds (individually):")
         dev_preds = trainer.predict(dev_dataset)
@@ -381,7 +350,7 @@ class GenericPipeline():
             "save_total_limit": 3,  # Only last3 models are saved. Older ones are deleted.
             "num_train_epochs": self.params.num_epochs,
             "per_device_train_batch_size": self.params.batch_size,
-            "per_device_eval_batch_size": 128,
+            "per_device_eval_batch_size": self.params.batch_size,
             "learning_rate": self.params.learning_rate,
             # "weight_decay": 0.01,
             "warmup_steps": 2 * num_save_eval_log_steps,
