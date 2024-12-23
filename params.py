@@ -15,7 +15,7 @@ class params():
         self.lambda2 = 0.0
         # self.lambda2 = 0.0
         self.balance_annotator_weights = False
-        self.early_stopping_patience = 8
+        self.early_stopping_patience = 15
         # self.epoch_freeze_bert = 1
         self.embedding_colnames = ""
         self.sort_instances_by = ""

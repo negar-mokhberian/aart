@@ -253,6 +253,15 @@ class AARTTrainer(Trainer):
 
 class AARTPipeline(GenericPipeline):
 
+    def print_embs_info(self, model):
+        for k in model.emb_names:
+            print('~' * 30)
+            print(k)
+            print(f"L1 of {k} embeddings:")
+            print(torch.norm(getattr(model, f"{k}_embeddings").weight.detach(), p=1, dim=1).mean())
+            print(self.data_dict[f'{k}_map'])
+            print(torch.norm(getattr(model, f"{k}_embeddings").weight.detach(), p=1, dim=1))
+
     def calculate_continous_disagreements(self, df, label_or_pred_col='label'):
         majority = df.groupby(self.instance_id_col)[label_or_pred_col].mean() >= 0.5
         count = df.groupby(self.instance_id_col)[label_or_pred_col].count()
