@@ -135,7 +135,7 @@ def main():
     name_time = sa_time.strftime('%m%d%y-%H:%M')
     score["time"] = name_time
 
-    results_dir = f"backup_results/{main_args.approach}/{main_args.data_name}"
+    results_dir = f"./results/{main_args.approach}/{main_args.data_name}"
     os.makedirs(results_dir, exist_ok=True)
     print("Saving results to ", results_dir)
 
