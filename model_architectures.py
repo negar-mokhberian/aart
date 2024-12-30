@@ -144,7 +144,7 @@ class AARTClassifier(RobertaForSequenceClassification):
         # Initialize weights and apply final processing
         self.post_init()
 
-    def calculate_loss(self, labels, logits, embeddings_to_contrast, text_ids):
+    def calculate_loss(self, labels, logits, text_ids, other_args):
         # elif self.config.problem_type == "single_label_classification":
         if len(self.annotator_balancing_weights):
             loss_fct = nn.CrossEntropyLoss(weight=self.label_balancing_weights, ignore_index=-1,
@@ -161,13 +161,15 @@ class AARTClassifier(RobertaForSequenceClassification):
             contrastive_loss_funct = losses.ContrastiveLoss()  # losses.NTXentLoss()
             l2_norm = torch.tensor(0., requires_grad=True)
             contrastive_loss = torch.tensor(0., requires_grad=True)
-            contrastive_loss = contrastive_loss + contrastive_loss_funct(
-                embeddings_to_contrast,
-                labels=labels.view(-1),
-                mask_labels=text_ids)
+
             for k in self.emb_names:
                 l2_norm = l2_norm + torch.linalg.vector_norm(getattr(self, f"{k}_embeddings").weight, dim=1,
                                                              ord=2).mean()
+                # todo what will happen to the the same embeddings? for example a0 and a0? or hispanic and hispanic?
+                contrastive_loss = contrastive_loss + contrastive_loss_funct(
+                    getattr(self, f"{k}_embeddings")(other_args[f"{k}_ids"]),
+                    labels=labels.view(-1),
+                    mask_labels=text_ids)
 
         return classification_loss, l2_norm, contrastive_loss
 
@@ -216,10 +218,8 @@ class AARTClassifier(RobertaForSequenceClassification):
         logits = self.classifier(batch_embeddings)
         if self.training:
             classification_loss, l2_norm, contrastive_loss = self.calculate_loss(logits=logits, labels=labels,
-                                                                                 embeddings_to_contrast=
-                                                                                 getattr(self, f"annotator_embeddings")(
-                                                                                     kwargs[f"annotator_ids"]),
-                                                                                 text_ids=kwargs['text_ids'])
+                                                                                 text_ids=kwargs['text_ids'],
+                                                                                 other_args=kwargs)
         else:
             classification_loss = torch.tensor(0., requires_grad=False)
             l2_norm = torch.tensor(0., requires_grad=False)
