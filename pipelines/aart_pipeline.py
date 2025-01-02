@@ -86,36 +86,36 @@ class AARTTrainer(Trainer):
     #
     #     return loss.detach()
 
-    def compute_loss(self, model, inputs, return_outputs=False):
-        """
-        How the loss is computed by Trainer. By default, all models return the loss in the first element.
+    # def compute_loss(self, model, inputs, return_outputs=False):
+    #     """
+    #     How the loss is computed by Trainer. By default, all models return the loss in the first element.
 
-        Subclass and override for custom behavior.
-        """
-        if self.label_smoother is not None and "labels" in inputs:
-            labels = inputs.pop("labels")
-        else:
-            labels = None
-        outputs = model(**inputs)
-        # Save past state if it exists
-        if self.args.past_index >= 0:
-            self._past = outputs[self.args.past_index]
+    #     Subclass and override for custom behavior.
+    #     """
+    #     if self.label_smoother is not None and "labels" in inputs:
+    #         labels = inputs.pop("labels")
+    #     else:
+    #         labels = None
+    #     outputs = model(**inputs)
+    #     # Save past state if it exists
+    #     if self.args.past_index >= 0:
+    #         self._past = outputs[self.args.past_index]
 
-        if labels is not None:
-            if unwrap_model(model)._get_name() in MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.values():
-                loss = self.label_smoother(outputs, labels, shift_labels=True)
-            else:
-                loss = self.label_smoother(outputs, labels)
-        else:
-            if isinstance(outputs, dict) and "loss" not in outputs:
-                raise ValueError(
-                    "The model did not return a loss from the inputs, only the following keys: "
-                    f"{','.join(outputs.keys())}. For reference, the inputs it received are {','.join(inputs.keys())}."
-                )
-            # We don't use .loss here since the model may return tuples instead of ModelOutput.
-            loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
+    #     if labels is not None:
+    #         if unwrap_model(model)._get_name() in MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.values():
+    #             loss = self.label_smoother(outputs, labels, shift_labels=True)
+    #         else:
+    #             loss = self.label_smoother(outputs, labels)
+    #     else:
+    #         if isinstance(outputs, dict) and "loss" not in outputs:
+    #             raise ValueError(
+    #                 "The model did not return a loss from the inputs, only the following keys: "
+    #                 f"{','.join(outputs.keys())}. For reference, the inputs it received are {','.join(inputs.keys())}."
+    #             )
+    #         # We don't use .loss here since the model may return tuples instead of ModelOutput.
+    #         loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
 
-        return (loss, outputs) if return_outputs else loss
+    #     return (loss, outputs) if return_outputs else loss
 
     # def _get_polynomial_lambda_schedule_with_inactive_steps(
     #         self,
@@ -217,11 +217,15 @@ class AARTTrainer(Trainer):
                 loss = self.label_smoother(outputs, labels)
         else:
             current_lambda = self.lambda_scheduler()
-            loss = current_lambda * outputs["l2_norm"] + (1 - current_lambda - self.args.contrastive_alpha) * outputs[
-                "ce_loss"] + self.args.contrastive_alpha * outputs['contrastive_loss']
+            loss = current_lambda * outputs["l2_norm"] \
+                    + (1 - current_lambda - self.args.contrastive_alpha) * outputs["ce_loss"] \
+                    + self.args.contrastive_alpha * outputs['contrastive_loss']
+            
             if self.state.global_step % 300 == 0:
-                print(
-                    f"step {self.state.global_step}, lambda: {current_lambda}, contrastive_alpha: {self.args.contrastive_alpha}, \ncurrent l2_norm: {outputs.l2_norm}, \ncurrent ce_loss: {outputs.ce_loss}, \ncurrent contrastive_loss: {outputs.contrastive_loss}")
+            # if self.control.should_evaluate:
+                print(f"step {self.state.global_step}, lambda: {current_lambda}, contrastive_alpha: {self.args.contrastive_alpha}," 
+                  f"\ncurrent l2_norm: {outputs.l2_norm}, \ncurrent ce_loss: {outputs.ce_loss}, \ncurrent contrastive_loss: {outputs.contrastive_loss}")
+                import pdb; pdb.set_trace()
 
         return (loss, outputs) if return_outputs else loss
 
