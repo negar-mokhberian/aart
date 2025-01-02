@@ -6,3 +6,4 @@ backup_results/
 __pycache__/
 logs/
 saved_models/
+pipelines/__pycache__
