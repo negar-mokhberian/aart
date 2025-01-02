@@ -367,22 +367,6 @@ class GenericPipeline():
     def get_annotators(self, df):
         pass
 
-    def _get_top_annotators(self, annotators):
-        """Finds the top N annotators with highest number of annotations.
-
-        Args:
-          annotators: the list of all annotators.
-
-        Returns:
-          the list of top N annotators
-        """
-        # if only a subset of annotators with the highest number of annotations
-        # are to be considered in the modeling
-        import pdb;
-        pdb.set_trace()
-        return [anno for anno, count in self.data[annotators].count(axis=0).sort_values(
-            ascending=False).items()][:min(self.params.top_n_annotators, len(annotators))]
-
     def get_batches(self, df):
         pass
 
@@ -447,25 +431,4 @@ class GenericPipeline():
             self.tokenizations[x["text"]] = tokenized_inputs
         return tokenized_inputs
 
-# eMFD, ghc, attitudes
-# if "attitudes" in self.params.data_name:
-#     self.multilabel = True
-#     if self.params.approach == "aart":
-#         df = pd.read_csv(f"{data_path}/all_data.csv")
-#     else:
-#         df = data_dict['df'] = pd.read_csv(f"{data_path}/all_data.csv", header=[0, 1])
-#
-#     if "small_large" in self.params.data_name.lower() or "large_small" in self.params.data_name.lower():
-#         data_dict['df'] = df[df['domain'].isin(["smallScale", "largeScale"])].reset_index(
-#             drop=True)
-#     elif "risk_large" in self.params.data_name.lower() or "large_risk" in self.params.data_name.lower():
-#         data_dict['df'] = df[df['domain'].isin(["sap2019", "largeScale"])].reset_index(drop=True)
-#     elif "small" in self.params.data_name.lower():
-#         data_dict['df'] = df[df['domain'] == "smallScale"].reset_index(drop=True)
-#     elif "large" in self.params.data_name.lower():
-#         data_dict['df'] = df[df['domain'] == "largeScale"].reset_index(drop=True)
-#     elif "risk" in self.params.data_name.lower():
-#         data_dict['df'] = df[df['domain'] == "sap2019"].reset_index(drop=True)
-#     else:
-#         data_dict['df'] = df
-# else:
+
