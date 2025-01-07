@@ -254,7 +254,7 @@ class AARTTrainer(Trainer):
 class AARTPipeline(GenericPipeline):
 
     def print_embs_info(self, model):
-        for k in model.emb_names:
+        for k in self.params.embedding_colnames: # or model.emb_names
             print('~' * 30)
             print(k)
             print(f"L1 of {k} embeddings:")
@@ -352,6 +352,7 @@ class AARTPipeline(GenericPipeline):
                                                     train_df[emb_col].squeeze().unique()),
                                                     train_df[emb_col].squeeze().unique())}
 
+        # TODO remove the following from the main branch and only keep in emfd branch
         for emb_col in encoding_colnames:
             ignore_error = False
             if (emb_col == "annotator") and ("emfd" in self.params.data_name.lower()):

@@ -214,8 +214,7 @@ class GenericPipeline():
         dev_dataset = self.get_batches(dev)
         # param_combinations = )
         print("*** PARAMS *** \n", self.get_param_combinations(sep1=": "))
-
-        self.print_embs_info(model.emb_names)
+        self.print_embs_info(model)
 
         epoch_steps = int(train.shape[0] / self.params.batch_size)
         print("Epoch Steps: ", epoch_steps)
