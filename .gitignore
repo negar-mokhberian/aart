@@ -7,3 +7,5 @@ __pycache__/
 logs/
 saved_models/
 pipelines/__pycache__
+test_run.sh
+
