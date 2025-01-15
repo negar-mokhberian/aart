@@ -16,6 +16,13 @@ def parse_args():
                         required=True,
                         help="The corpus name"
                         )
+    
+    parser.add_argument("--language_model_name",
+                        default=None,
+                        type=str,
+                        required=True,
+                        help="The transformer model name e.g. answerdotai/ModernBERT-base, roberta-base or cardiffnlp/twitter-roberta-base-offensive"
+                        )
 
     parser.add_argument("--approach",
                         default=None,

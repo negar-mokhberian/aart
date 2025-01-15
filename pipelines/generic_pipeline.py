@@ -56,8 +56,9 @@ class GenericPipeline():
         print(self.params)
         self.data_dict = self.read_data()
         # self.weights = list()
-        self.language_model_name = "answerdotai/ModernBERT-base"    # "cardiffnlp/twitter-roberta-base-offensive" if self.params.data_name in ["large","risk"] else "roberta-base"
-        self.tokenizer = AutoTokenizer.from_pretrained(self.language_model_name)
+        # todo self.language_model_name = "answerdotai/ModernBERT-base"    # "cardiffnlp/twitter-roberta-base-offensive" if self.params.data_name in ["large","risk"] else "roberta-base"
+        
+        self.tokenizer = AutoTokenizer.from_pretrained(self.params.language_model_name)
         self.tokenizations = {}
 
         self.compute_metrics_function = load_compute_metrics(self)
@@ -207,7 +208,7 @@ class GenericPipeline():
         if self.params.approach == "aart":
             train, dev, test = self.encode_values(train.copy(), dev.copy(), test.copy())
         
-        print("Name of pretrained language model: ", self.language_model_name)
+        print("Name of pretrained language model: ", self.params.language_model_name)
         model = self._new_model(train_df=train)
                                 #,language_model=self.language_model_name)
         train_dataset = self.get_batches(train)

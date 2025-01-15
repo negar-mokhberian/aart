@@ -285,7 +285,7 @@ class AARTPipeline(GenericPipeline):
 
 
         classifier = AARTClassifier(
-            pretrained_model_name_or_path=self.language_model_name,
+            pretrained_model_name_or_path=self.params.language_model_name,
             num_labels=num_labels,
             label_weights=label_weights,
             embd_type_cnt=embd_type_cnt,
