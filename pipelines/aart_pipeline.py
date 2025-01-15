@@ -30,35 +30,94 @@ class AARTTrainer(Trainer):
             collate_fn=data_collator,
         )  # , num_workers=4)
 
-    def compute_loss(self, model, inputs, return_outputs=False):
-        if self.label_smoother is not None and "labels" in inputs:
-            import pdb
 
-            pdb.set_trace()
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+        """
+        How the loss is computed by Trainer. By default, all models return the loss in the first element.
+
+        Subclass and override for custom behavior.
+        """
+        if (self.label_smoother is not None or self.compute_loss_func is not None) and "labels" in inputs:
+            raise ValueError(f"Unhandled case")
             labels = inputs.pop("labels")
         else:
             labels = None
+
+        if self.model_accepts_loss_kwargs:
+            loss_kwargs = {}
+            if num_items_in_batch is not None:
+                loss_kwargs["num_items_in_batch"] = num_items_in_batch
+            inputs = {**inputs, **loss_kwargs}
+
         outputs = model(**inputs)
+        # Save past state if it exists
+        if self.args.past_index >= 0:
+            raise ValueError(f"Unhandled case")
+            self._past = outputs[self.args.past_index]
 
-        assert self.args.past_index < 0
-
-        if labels is None:
-            loss = (
-                self.args.lambda2 * outputs["l2_norm"]
-                + self.args.contrastive_alpha * outputs["contrastive_loss"]
-                + (1 - current_lambda - self.args.contrastive_alpha) * outputs["ce_loss"]
-            )
+        if labels is not None:
+            raise ValueError(f"Unhandled case")
+            unwrapped_model = self.accelerator.unwrap_model(model)
+            if _is_peft_model(unwrapped_model):
+                model_name = unwrapped_model.base_model.model._get_name()
+            else:
+                model_name = unwrapped_model._get_name()
+            # User-defined compute_loss function
+            if self.compute_loss_func is not None:
+                loss = self.compute_loss_func(outputs, labels, num_items_in_batch=num_items_in_batch)
+            elif model_name in MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.values():
+                loss = self.label_smoother(outputs, labels, shift_labels=True)
+            else:
+                loss = self.label_smoother(outputs, labels)
+        else:
+            loss = self.args.lambda2 * outputs["l2_norm"] \
+                + self.args.contrastive_alpha * outputs["contrastive_loss"] \
+                + (1 - self.args.lambda2 - self.args.contrastive_alpha) * outputs["ce_loss"]
+            
 
             if self.state.global_step % 300 == 0:
             # if self.control.should_evaluate:
                 print(
-                    f"step {self.state.global_step}, lambda: {current_lambda}, contrastive_alpha: {self.args.contrastive_alpha},"
+                    f"step {self.state.global_step}, lambda: {self.args.lambda2}, contrastive_alpha: {self.args.contrastive_alpha},"
                     f"\ncurrent l2_norm: {outputs.l2_norm}, \ncurrent ce_loss: {outputs.ce_loss}, \ncurrent contrastive_loss: {outputs.contrastive_loss}"
                 )
-        else:
-            raise ValueError(f"Unhandled case for labels: {labels}")
+
+        if self.args.average_tokens_across_devices and self.model_accepts_loss_kwargs:
+            raise ValueError(f"Unhandled case")
+            loss *= self.accelerator.num_processes
 
         return (loss, outputs) if return_outputs else loss
+
+
+    # def compute_loss(self, model, inputs, return_outputs=False):
+    #     if self.label_smoother is not None and "labels" in inputs:
+    #         import pdb
+
+    #         pdb.set_trace()
+    #         labels = inputs.pop("labels")
+    #     else:
+    #         labels = None
+    #     outputs = model(**inputs)
+
+    #     assert self.args.past_index < 0
+
+    #     if labels is None:
+            # loss = (
+            #     self.args.lambda2 * outputs["l2_norm"]
+            #     + self.args.contrastive_alpha * outputs["contrastive_loss"]
+            #     + (1 - current_lambda - self.args.contrastive_alpha) * outputs["ce_loss"]
+            # )
+
+            # if self.state.global_step % 300 == 0:
+            # # if self.control.should_evaluate:
+            #     print(
+            #         f"step {self.state.global_step}, lambda: {current_lambda}, contrastive_alpha: {self.args.contrastive_alpha},"
+            #         f"\ncurrent l2_norm: {outputs.l2_norm}, \ncurrent ce_loss: {outputs.ce_loss}, \ncurrent contrastive_loss: {outputs.contrastive_loss}"
+            #     )
+    #     else:
+    #         raise ValueError(f"Unhandled case for labels: {labels}")
+
+    #     return (loss, outputs) if return_outputs else loss
 
 
 class AARTPipeline(GenericPipeline):
@@ -144,7 +203,7 @@ class AARTPipeline(GenericPipeline):
         if len(weights) == 1:
             weights = [0.01, 1]
         weights = torch.tensor(
-            weights, dtype=torch.float32, device="cuda"
+            weights, dtype=torch.bfloat16, device="cuda"
         )  # .to(self.device)
         return weights
 
@@ -159,7 +218,7 @@ class AARTPipeline(GenericPipeline):
         if len(weights) == 1:
             weights = [0.01, 1]
         weights = torch.tensor(
-            weights, dtype=torch.float32, device="cuda"
+            weights, dtype=torch.bfloat16, device="cuda"
         )  # .to(self.device)
         return weights
 
@@ -225,7 +284,7 @@ class AARTPipeline(GenericPipeline):
 
         return train_df, dev_df, test_df
 
-    def _new_model(self, train_df, language_model):
+    def _new_model(self, train_df):
         self.task_labels = None
         embd_type_cnt = {}
         for emb_col in self.params.embedding_colnames:
@@ -253,13 +312,15 @@ class AARTPipeline(GenericPipeline):
             )
         else:
             annotator_weights = []
-        classifier = AARTClassifier.from_pretrained(
-            pretrained_model_name_or_path=language_model,
+
+
+        classifier = AARTClassifier(
+            pretrained_model_name_or_path=self.language_model_name,
             num_labels=num_labels,
-            embd_type_cnt=embd_type_cnt,
             label_weights=label_weights,
+            embd_type_cnt=embd_type_cnt,
             annotator_weights=annotator_weights,
-        )
+        ).to(torch.bfloat16)
         return classifier
 
     def get_batches(self, df):
@@ -277,7 +338,7 @@ class AARTPipeline(GenericPipeline):
         if "pair_id" in df:
             ds_dict["parent_text"] = df.prep_parent_text.astype(str)
         ds = Dataset.from_dict(ds_dict)
-        tokenized_ds = ds.map(lambda x: self.tokenize_function(x))
+        tokenized_ds = ds.map(lambda x: self.tokenize_function(x), num_proc=16)
         tokenized_ds = tokenized_ds.remove_columns("text")
         if "pair_id" in df:
             tokenized_ds = tokenized_ds.remove_columns("parent_text")
@@ -288,18 +349,6 @@ class AARTPipeline(GenericPipeline):
         annotators_list = df.annotator.unique().tolist()
         return annotators_list
 
-    def plot_heatmap(self, mat, fig_dir, fig_name):
-        import matplotlib.pyplot as plt
-        import seaborn as sns
-        import os
-
-        os.makedirs(fig_dir, exist_ok=True)
-
-        cmap = sns.diverging_palette(0, 255, sep=1, n=256)
-        plt.figure(figsize=(30, 12))
-        y = [self.data_dict["annotator_map"][i] for i in range(mat.shape[0])]
-        sns.heatmap(mat, center=0, cmap=cmap, yticklabels=y)
-        plt.savefig(f"{fig_dir}/{fig_name}")
 
     def expand_test(self, df, unique_annotator_int):
         all_texts_df = df[[self.instance_id_col, "prep_text"]].drop_duplicates().copy()
