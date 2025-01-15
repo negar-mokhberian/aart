@@ -56,7 +56,8 @@ class GenericPipeline():
         print(self.params)
         self.data_dict = self.read_data()
         # self.weights = list()
-        self.tokenizer = AutoTokenizer.from_pretrained("roberta-base")
+        self.language_model_name = "answerdotai/ModernBERT-base"    # "cardiffnlp/twitter-roberta-base-offensive" if self.params.data_name in ["large","risk"] else "roberta-base"
+        self.tokenizer = AutoTokenizer.from_pretrained(self.language_model_name)
         self.tokenizations = {}
 
         self.compute_metrics_function = load_compute_metrics(self)
@@ -205,11 +206,10 @@ class GenericPipeline():
         scores = []
         if self.params.approach == "aart":
             train, dev, test = self.encode_values(train.copy(), dev.copy(), test.copy())
-        lm = "cardiffnlp/twitter-roberta-base-offensive" if self.params.data_name in ["large",
-                                                                                      "risk"] else "roberta-base"
-        print("Name of pretrained language model: ", lm)
-        model = self._new_model(train_df=train,
-                                language_model=lm)
+        
+        print("Name of pretrained language model: ", self.language_model_name)
+        model = self._new_model(train_df=train)
+                                #,language_model=self.language_model_name)
         train_dataset = self.get_batches(train)
         dev_dataset = self.get_batches(dev)
         # param_combinations = )
@@ -342,7 +342,7 @@ class GenericPipeline():
             "greater_is_better": False if metric_for_best_model == "eval_loss" else True,
             "save_strategy": "steps",
             "save_steps": num_save_eval_log_steps,
-            "save_total_limit": 3,  # Only last3 models are saved. Older ones are deleted.
+            "save_total_limit": 2,  # Only last 2 models are saved. Older ones are deleted.
             "num_train_epochs": self.params.num_epochs,
             "per_device_train_batch_size": self.params.batch_size,
             "per_device_eval_batch_size": self.params.batch_size,
@@ -370,7 +370,7 @@ class GenericPipeline():
     def get_batches(self, df):
         pass
 
-    def _new_model(self, train_df, language_model):
+    def _new_model(self, train_df):
         pass
 
     def _create_loss_label_weights(self, data):
