@@ -216,14 +216,10 @@ class AARTClassifier(RobertaForSequenceClassification):
         batch_embeddings = self.LayerNorm(batch_embeddings)
         # batch_embeddings = self.dropout(batch_embeddings)
         logits = self.classifier(batch_embeddings)
-        if self.training:
-            classification_loss, l2_norm, contrastive_loss = self.calculate_loss(logits=logits, labels=labels,
+        
+        classification_loss, l2_norm, contrastive_loss = self.calculate_loss(logits=logits, labels=labels,
                                                                                  text_ids=kwargs['text_ids'],
                                                                                  other_args=kwargs)
-        else:
-            classification_loss = torch.tensor(0., requires_grad=False)
-            l2_norm = torch.tensor(0., requires_grad=False)
-            contrastive_loss = torch.tensor(0., requires_grad=False)
 
         logits = torch.cat((kwargs[f"annotator_ids"].reshape(-1, 1), logits), 1)
 
