@@ -102,7 +102,7 @@ class AARTPipeline(GenericPipeline):
                     getattr(model, f"{k}_embeddings").weight.detach(), p=1, dim=1
                 ).mean()
             )
-            print(self.data_dict[f"{k}_map"])
+            # print(self.data_dict[f"{k}_map"])
             print(
                 torch.norm(
                     getattr(model, f"{k}_embeddings").weight.detach(), p=1, dim=1
@@ -284,12 +284,12 @@ class AARTPipeline(GenericPipeline):
             annotator_weights = []
 
 
-        classifier = AARTClassifier(
+        classifier = AARTClassifier.from_pretrained(
             pretrained_model_name_or_path=self.params.language_model_name,
             num_labels=num_labels,
-            label_weights=label_weights,
             embd_type_cnt=embd_type_cnt,
-            annotator_weights=annotator_weights,
+            label_weights=label_weights,
+            annotator_weights=annotator_weights
         ).to(torch.bfloat16)
         return classifier
 

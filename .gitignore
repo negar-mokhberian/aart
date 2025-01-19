@@ -7,4 +7,6 @@ __pycache__/
 logs/
 saved_models/
 pipelines/__pycache__
+runs/
 test_run.sh
+analysis_notebooks/

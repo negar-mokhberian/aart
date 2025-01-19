@@ -255,9 +255,10 @@ class GenericPipeline():
                 #         file.write('\n')
 
                 annot_embs_dict = {
-                    self.data_dict[f'{k}_map'][j]: getattr(model, f"{k}_embeddings").weight.detach().cpu().numpy()[
+                    self.data_dict[f'{k}_map'][j]: getattr(model, f"{k}_embeddings").weight.to(torch.float32).detach().cpu().numpy()[
                                                    j, :]
                     for j in train[f'{k}_int_encoded'].unique()}
+                
                 with open(emb_file_name, 'wb') as fp:
                     pickle.dump(annot_embs_dict, fp)
                     print(f'{k} embeddings saved successfully to file')
