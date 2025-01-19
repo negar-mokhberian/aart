@@ -1,7 +1,7 @@
 class params():
     def __init__(self):
         self.data_name = None
-        # self.transformer_model_name = 'roberta-base'
+        self.language_model_name = 'roberta-base'
         self.batch_size = 16
         self.learning_rate = 2e-5
         self.max_len = 128
@@ -13,7 +13,6 @@ class params():
         self.use_majority_weight = True
         self.majority_inference = False
         self.lambda2 = 0.0
-        # self.lambda2 = 0.0
         self.balance_annotator_weights = False
         self.early_stopping_patience = 15
         # self.epoch_freeze_bert = 1

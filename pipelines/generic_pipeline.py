@@ -56,7 +56,9 @@ class GenericPipeline():
         print(self.params)
         self.data_dict = self.read_data()
         # self.weights = list()
-        self.tokenizer = AutoTokenizer.from_pretrained("roberta-base")
+        # todo self.language_model_name = "answerdotai/ModernBERT-base"    # "cardiffnlp/twitter-roberta-base-offensive" if self.params.data_name in ["large","risk"] else "roberta-base"
+        
+        self.tokenizer = AutoTokenizer.from_pretrained(self.params.language_model_name)
         self.tokenizations = {}
 
         self.compute_metrics_function = load_compute_metrics(self)
@@ -205,11 +207,10 @@ class GenericPipeline():
         scores = []
         if self.params.approach == "aart":
             train, dev, test = self.encode_values(train.copy(), dev.copy(), test.copy())
-        lm = "cardiffnlp/twitter-roberta-base-offensive" if self.params.data_name in ["large",
-                                                                                      "risk"] else "roberta-base"
-        print("Name of pretrained language model: ", lm)
-        model = self._new_model(train_df=train,
-                                language_model=lm)
+        
+        print("Name of pretrained language model: ", self.params.language_model_name)
+        model = self._new_model(train_df=train)
+                                #,language_model=self.language_model_name)
         train_dataset = self.get_batches(train)
         dev_dataset = self.get_batches(dev)
         # param_combinations = )
@@ -254,9 +255,10 @@ class GenericPipeline():
                 #         file.write('\n')
 
                 annot_embs_dict = {
-                    self.data_dict[f'{k}_map'][j]: getattr(model, f"{k}_embeddings").weight.detach().cpu().numpy()[
+                    self.data_dict[f'{k}_map'][j]: getattr(model, f"{k}_embeddings").weight.to(torch.float32).detach().cpu().numpy()[
                                                    j, :]
                     for j in train[f'{k}_int_encoded'].unique()}
+                
                 with open(emb_file_name, 'wb') as fp:
                     pickle.dump(annot_embs_dict, fp)
                     print(f'{k} embeddings saved successfully to file')
@@ -342,7 +344,7 @@ class GenericPipeline():
             "greater_is_better": False if metric_for_best_model == "eval_loss" else True,
             "save_strategy": "steps",
             "save_steps": num_save_eval_log_steps,
-            "save_total_limit": 3,  # Only last3 models are saved. Older ones are deleted.
+            "save_total_limit": 2,  # Only last 2 models are saved. Older ones are deleted.
             "num_train_epochs": self.params.num_epochs,
             "per_device_train_batch_size": self.params.batch_size,
             "per_device_eval_batch_size": self.params.batch_size,
@@ -367,26 +369,10 @@ class GenericPipeline():
     def get_annotators(self, df):
         pass
 
-    def _get_top_annotators(self, annotators):
-        """Finds the top N annotators with highest number of annotations.
-
-        Args:
-          annotators: the list of all annotators.
-
-        Returns:
-          the list of top N annotators
-        """
-        # if only a subset of annotators with the highest number of annotations
-        # are to be considered in the modeling
-        import pdb;
-        pdb.set_trace()
-        return [anno for anno, count in self.data[annotators].count(axis=0).sort_values(
-            ascending=False).items()][:min(self.params.top_n_annotators, len(annotators))]
-
     def get_batches(self, df):
         pass
 
-    def _new_model(self, train_df, language_model):
+    def _new_model(self, train_df):
         pass
 
     def _create_loss_label_weights(self, data):
@@ -446,26 +432,3 @@ class GenericPipeline():
                                               max_length=self.params.max_len)
             self.tokenizations[x["text"]] = tokenized_inputs
         return tokenized_inputs
-
-# eMFD, ghc, attitudes
-# if "attitudes" in self.params.data_name:
-#     self.multilabel = True
-#     if self.params.approach == "aart":
-#         df = pd.read_csv(f"{data_path}/all_data.csv")
-#     else:
-#         df = data_dict['df'] = pd.read_csv(f"{data_path}/all_data.csv", header=[0, 1])
-#
-#     if "small_large" in self.params.data_name.lower() or "large_small" in self.params.data_name.lower():
-#         data_dict['df'] = df[df['domain'].isin(["smallScale", "largeScale"])].reset_index(
-#             drop=True)
-#     elif "risk_large" in self.params.data_name.lower() or "large_risk" in self.params.data_name.lower():
-#         data_dict['df'] = df[df['domain'].isin(["sap2019", "largeScale"])].reset_index(drop=True)
-#     elif "small" in self.params.data_name.lower():
-#         data_dict['df'] = df[df['domain'] == "smallScale"].reset_index(drop=True)
-#     elif "large" in self.params.data_name.lower():
-#         data_dict['df'] = df[df['domain'] == "largeScale"].reset_index(drop=True)
-#     elif "risk" in self.params.data_name.lower():
-#         data_dict['df'] = df[df['domain'] == "sap2019"].reset_index(drop=True)
-#     else:
-#         data_dict['df'] = df
-# else:
