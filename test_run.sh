@@ -13,10 +13,7 @@ python main.py \
     --num_fake_annotators 0 \
     --max_len 100 \
     --language_model_name roberta-base
-
-#--num_fake_annotators 10
-# --lambda2 0.9 --use_majority_weight --embedding_colnames annotatorGender,annotatorPolitics,annotatorRace,altruism,empathy,freeSpeech,harmHateSpeech,traditionalism,lingPurism,racism
-# kumar ,race,age_range,lgbtq_status,religion_important,is_parent,political_affilation,education
+    
 
 
 
