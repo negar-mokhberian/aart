@@ -166,18 +166,4 @@ def main():
 
 
 if __name__ == "__main__":
-    import torch
-    import socket
-
-    print("*** Cuda info ***")
-    print("hostname", socket.gethostname())
-    print("torch.cuda.is_available()", torch.cuda.is_available())
-    print("torch.cuda.current_device()", torch.cuda.current_device()) # The ID of the current GPU.
-    print("torch.cuda.get_device_name(id)", torch.cuda.get_device_name(id))  # The name of the specified GPU, where id is an integer.
-    print("torch.cuda.device_count()", torch.cuda.device_count())  # The amount of GPUs that are accessible.
-    print("torch.cuda.get_device_properties(torch.device('cuda'))", torch.cuda.get_device_properties(torch.device('cuda')))
     main()
-
-
-# python main.py --data_name $DATA_NAME --approach "aart" --batch_size 16 --learning_rate 5e-5 --max_len 50 --num_epochs 1 --lambda2 0.85 --embedding_colnames annotator condition
-# python main.py --data_name $DATA_NAME --approach "single" --batch_size 16 --learning_rate 5e-5 --max_len 50 --num_epochs 1 --use_majority_weight
