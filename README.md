@@ -26,9 +26,7 @@ pip install -r requirements.txt
 
 ---
 
-## 🏗️ How to Use
-
-### 1️⃣ Running AART
+## 🏗️ Running AART
 
 You can explore available command-line arguments using:
 
